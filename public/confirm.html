@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Events</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .header {
+      background: #667eea;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 { font-size: 24px; font-weight: 600; }
+    .header p { opacity: 0.9; margin-top: 5px; font-size: 14px; }
+    
+    /* Sign In View */
+    .signin-view {
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .signin-view p { color: #6b7280; margin-bottom: 20px; }
+    .google-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      border: 2px solid #e5e7eb;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .google-btn:hover { border-color: #667eea; background: #f9fafb; }
+    .google-btn img { width: 20px; height: 20px; }
+    
+    /* User Info Bar */
+    .user-bar {
+      background: #f3f4f6;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    .user-email { color: #374151; }
+    .sign-out { color: #667eea; cursor: pointer; font-weight: 500; }
+    .sign-out:hover { text-decoration: underline; }
+    
+    /* Calendar Selector */
+    .calendar-selector {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .calendar-selector label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    .calendar-selector select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+    }
+    
+    /* Events List View */
+    .events-list { padding: 20px; }
+    .event-card {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-left: 4px solid #667eea;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+    .event-card:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .event-card:last-child { margin-bottom: 0; }
+    .event-title { font-weight: 600; font-size: 16px; color: #1f2937; margin-bottom: 8px; }
+    .event-details { font-size: 14px; color: #6b7280; }
+    .event-details span { display: block; margin-bottom: 4px; }
+    .edit-hint { font-size: 12px; color: #667eea; margin-top: 8px; }
+    
+    /* Form View */
+    .form-container { padding: 20px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .field input, .field textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    .field input:focus, .field textarea:focus { outline: none; border-color: #667eea; }
+    .field textarea { resize: vertical; min-height: 80px; }
+    
+    /* Buttons */
+    .buttons { display: flex; gap: 12px; padding: 0 20px 20px; }
+    .btn {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #667eea; color: white; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4); }
+    .btn-secondary { background: #f3f4f6; color: #374151; }
+    
+    /* Status */
+    .status { padding: 30px 20px; text-align: center; display: none; }
+    .status.show { display: block; }
+    .status.success { background: #d1fae5; color: #065f46; }
+    .status.error { background: #fee2e2; color: #991b1b; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none !important; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+    .back-btn:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div id="backBtn" class="back-btn hidden" onclick="showEventsList()">← Back to all events</div>
+      <h1>📅 Screenshot to Event</h1>
+      <p id="subtitle">Review and add to your calendar</p>
+    </div>
+
+    <!-- Sign In View -->
+    <div id="signinView" class="signin-view hidden">
+      <p>Sign in with your Google account to add events to your calendar</p>
+      <button class="google-btn" onclick="signInWithGoogle()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+        Sign in with Google
+      </button>
+    </div>
+
+    <!-- User Info Bar -->
+    <div id="userBar" class="user-bar hidden">
+      <span class="user-email" id="userEmail"></span>
+      <span class="sign-out" onclick="signOut()">Sign out</span>
+    </div>
+
+    <!-- Calendar Selector -->
+    <div id="calendarSelector" class="calendar-selector hidden">
+      <label for="calendarSelect">Add to calendar:</label>
+      <select id="calendarSelect" onchange="saveCalendarSelection()">
+        <option value="">Loading calendars...</option>
+      </select>
+    </div>
+
+    <div id="loadingView" class="status show">
+      <div class="spinner"></div>
+      <p>Loading...</p>
+    </div>
+
+    <!-- Multiple Events List View -->
+    <div id="eventsListView" class="hidden">
+      <div class="events-list" id="eventsList"></div>
+      <div class="buttons">
+        <button class="btn btn-secondary" onclick="window.close()">Cancel</button>
+        <button class="btn btn-primary" id="addAllButton" onclick="addAllEvents()">Add All Events</button>
+      </div>
+    </div>
+
+    <!-- Single Event Edit Form -->
+    <div id="formView" class="hidden">
+      <div class="form-container">
+        <div class="field">
+          <label for="title">Event Title</label>
+          <input type="text" id="title" placeholder="Enter event title">
+        </div>
+        <div class="field">
+          <label for="date">Date</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label for="startTime">Start Time</label>
+          <input type="time" id="startTime">
+        </div>
+        <div class="field">
+          <label for="endTime">End Time</label>
+          <input type="time" id="endTime">
+        </div>
+        <div class="field">
+          <label for="location">Location</label>
+          <input type="text" id="location" placeholder="Optional">
+        </div>
+        <div class="field">
+          <label for="description">Description</label>
+          <textarea id="description" placeholder="Additional details..."></textarea>
+        </div>
+      </div>
+      <div class="buttons">
+        <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
+        <button id="submitBtn" class="btn btn-primary" onclick="submitEvent()">Add to Calendar</button>
+      </div>
+    </div>
+
+    <div id="resultView" class="status"></div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Token storage
+    let accessToken = localStorage.getItem('google_access_token');
+    let refreshToken = localStorage.getItem('google_refresh_token');
+    let userEmail = localStorage.getItem('google_user_email');
+    let selectedCalendarId = localStorage.getItem('selected_calendar_id') || 'primary';
+    
+    let allEvents = [];
+    let editingIndex = -1;
+    let calendars = [];
+
+    // Check for OAuth callback tokens in hash
+    if (window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      if (hashParams.get('access_token')) {
+        accessToken = hashParams.get('access_token');
+        refreshToken = hashParams.get('refresh_token') || refreshToken;
+        userEmail = hashParams.get('user_email') || '';
+        
+        localStorage.setItem('google_access_token', accessToken);
+        if (refreshToken) localStorage.setItem('google_refresh_token', refreshToken);
+        if (userEmail) localStorage.setItem('google_user_email', userEmail);
+        
+        // Clear hash from URL
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+
+    // Check for auth errors
+    if (urlParams.get('auth_error')) {
+      showResult('error', 'Sign in failed: ' + urlParams.get('auth_error'));
+    } else {
+      initialize();
+    }
+
+    async function initialize() {
+      // Parse events from URL
+      const eventsParam = urlParams.get('events');
+      const prefilled = urlParams.get('prefilled');
+      
+      if (prefilled === '1' && eventsParam) {
+        try {
+          allEvents = JSON.parse(eventsParam);
+        } catch (e) {
+          showResult('error', 'Failed to parse event data');
+          return;
+        }
+      } else if (prefilled === '1') {
+        allEvents = [{
+          title: urlParams.get('title') || '',
+          date: urlParams.get('date') || '',
+          startTime: urlParams.get('startTime') || '',
+          endTime: urlParams.get('endTime') || '',
+          location: urlParams.get('location') || '',
+          description: urlParams.get('description') || ''
+        }];
+      } else {
+        showResult('error', 'No events to display');
+        return;
+      }
+
+      // Check if signed in
+      if (!accessToken) {
+        showSignIn();
+        return;
+      }
+
+      // Load calendars and show events
+      await loadCalendars();
+    }
+
+    function showSignIn() {
+      document.getElementById('loadingView').classList.add('hidden');
+      document.getElementById('signinView').classList.remove('hidden');
+      document.getElementById('subtitle').textContent = 'Sign in to continue';
+    }
+
+    function signInWithGoogle() {
+      // Preserve current URL params for return
+      const returnUrl = window.location.pathname + window.location.search;
+      window.location.href = `${API_BASE}/api/auth/google?returnTo=${encodeURIComponent(returnUrl)}`;
+    }
+
+    function signOut() {
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_refresh_token');
+      localStorage.removeItem('google_user_email');
+      accessToken = null;
+      refreshToken = null;
+      userEmail = null;
+      showSignIn();
+      document.getElementById('userBar').classList.add('hidden');
+      document.getElementById('calendarSelector').classList.add('hidden');
+      document.getElementById('eventsListView').classList.add('hidden');
+      document.getElementById('formView').classList.add('hidden');
+    }
+
+    async function loadCalendars() {
+      try {
+        const response = await fetch(`${API_BASE}/api/calendars`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+
+        if (response.status === 401) {
+          // Token expired
+          signOut();
+          showResult('error', 'Session expired. Please sign in again.');
+          return;
+        }
+
+        const data = await response.json();
+        calendars = data.calendars || [];
+        
+        // Populate calendar dropdown
+        const select = document.getElementById('calendarSelect');
+        select.innerHTML = calendars.map(cal => 
+          `<option value="${cal.id}" ${cal.id === selectedCalendarId ? 'selected' : ''}>
+            ${cal.name}${cal.primary ? ' (Primary)' : ''}
+          </option>`
+        ).join('');
+
+        // If no selected calendar, use primary
+        if (!selectedCalendarId || !calendars.find(c => c.id === selectedCalendarId)) {
+          const primary = calendars.find(c => c.primary);
+          selectedCalendarId = primary ? primary.id : calendars[0]?.id || 'primary';
+          localStorage.setItem('selected_calendar_id', selectedCalendarId);
+          select.value = selectedCalendarId;
+        }
+
+        // Show UI
+        document.getElementById('loadingView').classList.add('hidden');
+        document.getElementById('userBar').classList.remove('hidden');
+        document.getElementById('userEmail').textContent = userEmail || 'Signed in';
+        document.getElementById('calendarSelector').classList.remove('hidden');
+        
+        initializeEventView();
+      } catch (error) {
+        console.error('Failed to load calendars:', error);
+        showResult('error', 'Failed to load calendars');
+      }
+    }
+
+    function saveCalendarSelection() {
+      selectedCalendarId = document.getElementById('calendarSelect').value;
+      localStorage.setItem('selected_calendar_id', selectedCalendarId);
+    }
+
+    function initializeEventView() {
+      if (allEvents.length === 1) {
+        editingIndex = -1;
+        showSingleEventForm(allEvents[0]);
+      } else {
+        showEventsList();
+      }
+    }
+
+    function showEventsList() {
+      editingIndex = -1;
+      document.getElementById('backBtn').classList.add('hidden');
+      document.getElementById('formView').classList.add('hidden');
+      document.getElementById('eventsListView').classList.remove('hidden');
+      document.getElementById('subtitle').textContent = `${allEvents.length} events found - tap to edit`;
+      
+      const list = document.getElementById('eventsList');
+      list.innerHTML = allEvents.map((event, i) => `
+        <div class="event-card" onclick="editEvent(${i})">
+          <div class="event-title">${event.title || 'Untitled Event'}</div>
+          <div class="event-details">
+            <span>📅 ${formatDate(event.date)}</span>
+            <span>🕐 ${event.startTime}${event.endTime ? ' - ' + event.endTime : ''}</span>
+            ${event.location ? `<span>📍 ${event.location}</span>` : ''}
+          </div>
+          <div class="edit-hint">✏️ Tap to edit</div>
+        </div>
+      `).join('');
+    }
+
+    function editEvent(index) {
+      editingIndex = index;
+      showSingleEventForm(allEvents[index]);
+      document.getElementById('backBtn').classList.remove('hidden');
+      document.getElementById('subtitle').textContent = `Editing event ${index + 1} of ${allEvents.length}`;
+    }
+
+    function showSingleEventForm(event) {
+      document.getElementById('eventsListView').classList.add('hidden');
+      document.getElementById('formView').classList.remove('hidden');
+      
+      document.getElementById('title').value = event.title || '';
+      document.getElementById('date').value = event.date || '';
+      document.getElementById('startTime').value = event.startTime || '';
+      document.getElementById('endTime').value = event.endTime || '';
+      document.getElementById('location').value = event.location || '';
+      document.getElementById('description').value = event.description || '';
+      
+      const cancelBtn = document.getElementById('cancelBtn');
+      const submitBtn = document.getElementById('submitBtn');
+      
+      if (editingIndex >= 0) {
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = showEventsList;
+        submitBtn.textContent = 'Save Changes';
+        submitBtn.onclick = saveEventChanges;
+      } else {
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => window.close();
+        submitBtn.textContent = 'Add to Calendar';
+        submitBtn.onclick = submitSingleEvent;
+        document.getElementById('backBtn').classList.add('hidden');
+        document.getElementById('subtitle').textContent = 'Review and add to your calendar';
+      }
+    }
+
+    function saveEventChanges() {
+      allEvents[editingIndex] = getFormData();
+      showEventsList();
+    }
+
+    function getFormData() {
+      return {
+        title: document.getElementById('title').value,
+        date: document.getElementById('date').value,
+        startTime: document.getElementById('startTime').value,
+        endTime: document.getElementById('endTime').value,
+        location: document.getElementById('location').value,
+        description: document.getElementById('description').value
+      };
+    }
+
+    async function submitSingleEvent() {
+      const event = getFormData();
+      if (!event.title || !event.date || !event.startTime) {
+        alert('Please fill in title, date, and start time.');
+        return;
+      }
+
+      showLoading('Creating event...');
+
+      try {
+        const response = await fetch(`${API_BASE}/api/create-event`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({ ...event, calendarId: selectedCalendarId })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 401) {
+          signOut();
+          showResult('error', 'Session expired. Please sign in again.');
+          return;
+        }
+
+        if (data.success) {
+          showResult('success', `Event "${event.title}" created!`);
+        } else {
+          showResult('error', data.error || 'Failed to create event');
+        }
+      } catch (error) {
+        showResult('error', 'Failed to create event: ' + error.message);
+      }
+    }
+
+    async function addAllEvents() {
+      if (!allEvents.length) return;
+
+      showLoading('Creating events...');
+
+      try {
+        const response = await fetch(`${API_BASE}/api/create-events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({ events: allEvents, calendarId: selectedCalendarId })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 401) {
+          signOut();
+          showResult('error', 'Session expired. Please sign in again.');
+          return;
+        }
+
+        if (data.success) {
+          showResult('success', `${data.count} event${data.count > 1 ? 's' : ''} created!`);
+        } else {
+          showResult('error', data.error || 'Failed to create events');
+        }
+      } catch (error) {
+        showResult('error', 'Failed to create events: ' + error.message);
+      }
+    }
+
+    function showLoading(message) {
+      document.getElementById('eventsListView').classList.add('hidden');
+      document.getElementById('formView').classList.add('hidden');
+      document.getElementById('resultView').classList.remove('show');
+      document.getElementById('loadingView').classList.remove('hidden');
+      document.getElementById('loadingView').querySelector('p').textContent = message;
+    }
+
+    function showResult(type, message) {
+      document.getElementById('loadingView').classList.add('hidden');
+      document.getElementById('signinView').classList.add('hidden');
+      document.getElementById('eventsListView').classList.add('hidden');
+      document.getElementById('formView').classList.add('hidden');
+      const resultView = document.getElementById('resultView');
+      resultView.className = 'status show ' + type;
+      resultView.innerHTML = `<p style="font-size: 18px; font-weight: 600;">${type === 'success' ? '✅' : '❌'} ${message}</p>
+        <p style="margin-top: 10px; color: #6b7280;">
+          ${type === 'success' ? 'Added to your Google Calendar.' : ''}
+        </p>`;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return 'No date';
+      const date = new Date(dateStr + 'T12:00:00');
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "screenshot-event",
+  "version": "1.0.0",
+  "description": "Parse screenshots of events and add them to Google Calendar",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "googleapis": "^144.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
