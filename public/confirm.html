@@ -115,6 +115,13 @@
       border-radius: 8px;
       font-size: 16px;
     }
+    .field input[type="time"],
+    .field input[type="date"] {
+      text-align: center;
+      max-width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+    }
     .field input:focus, .field textarea:focus { outline: none; border-color: #667eea; }
     .field textarea { resize: vertical; min-height: 80px; }
     
@@ -253,7 +260,7 @@
     let accessToken = localStorage.getItem('google_access_token');
     let refreshToken = localStorage.getItem('google_refresh_token');
     let userEmail = localStorage.getItem('google_user_email');
-    let selectedCalendarId = localStorage.getItem('selected_calendar_id') || 'primary';
+    let selectedCalendarId = 'primary';
     
     let allEvents = [];
     let editingIndex = -1;
@@ -369,13 +376,10 @@
           </option>`
         ).join('');
 
-        // If no selected calendar, use primary
-        if (!selectedCalendarId || !calendars.find(c => c.id === selectedCalendarId)) {
-          const primary = calendars.find(c => c.primary);
-          selectedCalendarId = primary ? primary.id : calendars[0]?.id || 'primary';
-          localStorage.setItem('selected_calendar_id', selectedCalendarId);
-          select.value = selectedCalendarId;
-        }
+        // Always default to primary calendar
+        const primary = calendars.find(c => c.primary);
+        selectedCalendarId = primary ? primary.id : calendars[0]?.id || 'primary';
+        select.value = selectedCalendarId;
 
         // Show UI
         document.getElementById('loadingView').classList.add('hidden');
@@ -392,7 +396,6 @@
 
     function saveCalendarSelection() {
       selectedCalendarId = document.getElementById('calendarSelect').value;
-      localStorage.setItem('selected_calendar_id', selectedCalendarId);
     }
 
     function initializeEventView() {
@@ -439,7 +442,13 @@
       document.getElementById('title').value = event.title || '';
       document.getElementById('date').value = event.date || '';
       document.getElementById('startTime').value = event.startTime || '';
-      document.getElementById('endTime').value = event.endTime || '';
+      
+      // Default end time to 1 hour after start time if not provided
+      let endTime = event.endTime || '';
+      if (!endTime && event.startTime) {
+        endTime = addOneHour(event.startTime);
+      }
+      document.getElementById('endTime').value = endTime;
       document.getElementById('location').value = event.location || '';
       document.getElementById('description').value = event.description || '';
       
@@ -572,6 +581,13 @@
       if (!dateStr) return 'No date';
       const date = new Date(dateStr + 'T12:00:00');
       return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function addOneHour(timeStr) {
+      if (!timeStr) return '';
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const newHours = (hours + 1) % 24;
+      return `${newHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     }
   </script>
 </body>
