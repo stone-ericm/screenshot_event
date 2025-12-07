@@ -359,9 +359,8 @@
         });
 
         if (response.status === 401) {
-          // Token expired
+          // Token expired - show sign in view instead of error
           signOut();
-          showResult('error', 'Session expired. Please sign in again.');
           return;
         }
 
