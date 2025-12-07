@@ -176,6 +176,57 @@ npm run dev
 
 This starts the Vercel dev server at `http://localhost:3000`.
 
+### Testing Scripts
+
+**Test the confirmation form with sample data:**
+```bash
+# Single event
+npm run test:form
+
+# Multiple events
+npm run test:form:multi
+```
+
+**Test uploading an image:**
+```bash
+# Uses placeholder image (tests connectivity)
+npm run test:upload
+
+# Test with a real screenshot
+npm run test:upload -- /path/to/screenshot.jpg
+```
+
+**Get your local IP for iPhone testing:**
+```bash
+npm run ip
+```
+
+### Local Network Testing (iPhone → Mac)
+
+To test the iOS Shortcut against your local dev server:
+
+1. **Start the dev server:**
+   ```bash
+   npm run dev
+   ```
+
+2. **Get your Mac's local IP:**
+   ```bash
+   npm run ip
+   # Example output: 192.168.1.100
+   ```
+
+3. **Duplicate your iOS Shortcut** and modify:
+   - Change URL from `https://screenshot-event-app.vercel.app/api/quick-add`
+   - To: `http://YOUR_IP:3000/api/quick-add`
+   - Example: `http://192.168.1.100:3000/api/quick-add`
+
+4. **Make sure your iPhone is on the same WiFi network as your Mac**
+
+5. **Test!** The shortcut will now use your local server, and the redirect URL will automatically point to your local IP.
+
+> ⚠️ **Note:** The API key (X-API-Key header) must match your local `.env` file's `APP_SECRET_KEY`.
+
 ## Project Structure
 
 ```

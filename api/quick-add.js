@@ -114,7 +114,12 @@ Multiple days: [{"title":"Event Name (Day 1)","date":"2025-12-06","startTime":"1
           prefilled: '1'
         });
 
-        const redirectUrl = `https://screenshot-event-app.vercel.app/confirm.html?${params.toString()}`;
+        // Use request host for local network testing, production URL otherwise
+        const host = req.headers.host || 'screenshot-event-app.vercel.app';
+        const protocol = host.includes('localhost') || host.match(/^\d+\.\d+\.\d+\.\d+/) ? 'http' : 'https';
+        const baseUrl = host.includes('vercel.app') ? 'https://screenshot-event-app.vercel.app' : `${protocol}://${host}`;
+        
+        const redirectUrl = `${baseUrl}/confirm.html?${params.toString()}`;
         
         // Return plain text URL (no formatting, headers, or encoding)
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
