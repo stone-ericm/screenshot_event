@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod",
-    "test:form": "open 'http://localhost:3000/confirm.html?prefilled=1&events=%5B%7B%22title%22%3A%22Test%20Event%22%2C%22date%22%3A%222025-12-25%22%2C%22startTime%22%3A%2214%3A00%22%2C%22endTime%22%3A%22%22%2C%22location%22%3A%22123%20Main%20St%22%2C%22description%22%3A%22Test%20description%22%7D%5D'",
-    "test:form:multi": "open 'http://localhost:3000/confirm.html?prefilled=1&events=%5B%7B%22title%22%3A%22Day%201%20Event%22%2C%22date%22%3A%222025-12-25%22%2C%22startTime%22%3A%2210%3A00%22%2C%22endTime%22%3A%2218%3A00%22%2C%22location%22%3A%22Venue%22%7D%2C%7B%22title%22%3A%22Day%202%20Event%22%2C%22date%22%3A%222025-12-26%22%2C%22startTime%22%3A%2210%3A00%22%2C%22endTime%22%3A%2218%3A00%22%2C%22location%22%3A%22Venue%22%7D%5D'",
+    "test:form": "node scripts/test-form.js",
+    "test:form:multi": "node scripts/test-form.js multi",
     "test:upload": "node scripts/test-upload.js",
     "ip": "ipconfig getifaddr en0"
   },
