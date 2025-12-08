@@ -6,170 +6,150 @@ Turn screenshots of events (from social media, email, texts, etc.) into Google C
 
 1. **Share a screenshot** from your iPhone via iOS Shortcut
 2. **Claude Vision AI** extracts event details (title, date, time, location)
-3. **Review & edit** the parsed event in a mobile-friendly web form
-4. **Add to Google Calendar** with one tap
+3. **Sign in with Google** (first time only) to authorize calendar access
+4. **Review & edit** the parsed event in a mobile-friendly web form
+5. **Add to any Google Calendar** with one tap
 
-## Setup Guide
+## Quick Start (iOS Shortcut)
 
-### Step 1: Google Cloud Project Setup
+### Prerequisites
+- Your deployed app URL (e.g., `https://screenshot-event-app.vercel.app`)
+- Your `APP_SECRET_KEY` from the `.env` file
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-
-2. **Create a new project:**
-   - Click the project dropdown at the top
-   - Click "New Project"
-   - Name it something like "Screenshot Events"
-   - Click "Create"
-
-3. **Enable the Calendar API:**
-   - In your new project, go to "APIs & Services" > "Library"
-   - Search for "Google Calendar API"
-   - Click on it and click "Enable"
-
-4. **Create OAuth credentials:**
-   - Go to "APIs & Services" > "Credentials"
-   - Click "Create Credentials" > "OAuth client ID"
-   - If prompted, configure the OAuth consent screen:
-     - Choose "External" user type
-     - Fill in app name (e.g., "Screenshot Events")
-     - Add your email as developer contact
-     - Skip scopes for now
-     - Add your email as a test user
-     - Save
-   - Back in Credentials, create "OAuth client ID"
-   - Application type: "Desktop app" (or "Web application")
-   - Name it anything
-   - Click "Create"
-   - **Save the Client ID and Client Secret** - you'll need these!
-
-### Step 2: Create Your "Events" Calendar
-
-1. Go to [Google Calendar](https://calendar.google.com/)
-2. On the left sidebar, click "+" next to "Other calendars"
-3. Click "Create new calendar"
-4. Name it "Events I'm Interested In" (or whatever you prefer)
-5. Click "Create calendar"
-6. After creation, click on your new calendar in the sidebar
-7. Go to "Settings and sharing"
-8. Scroll down to find "Calendar ID" (looks like `abc123@group.calendar.google.com`)
-9. **Save this Calendar ID** - you'll need it!
-
-### Step 3: Local Setup
-
-```bash
-# Clone/navigate to the project
-cd screenshot_event
-
-# Install dependencies
-npm install
-
-# Create your .env file
-cp .env.example .env
-```
-
-Edit `.env` with your credentials:
-```
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_CALENDAR_ID=your-calendar-id@group.calendar.google.com
-DEFAULT_TIMEZONE=America/New_York
-```
-
-### Step 4: Get Google Refresh Token
-
-Run the helper script to complete OAuth and get your refresh token:
-
-```bash
-node scripts/get-google-token.js
-```
-
-This will:
-1. Give you a URL to visit
-2. You'll sign in and authorize the app
-3. Copy the code back to the terminal
-4. It will output your `GOOGLE_REFRESH_TOKEN`
-
-Add the refresh token to your `.env` file.
-
-### Step 5: Deploy to Vercel
-
-```bash
-# Login to Vercel (if not already)
-npx vercel login
-
-# Deploy
-npx vercel
-
-# For production
-npx vercel --prod
-```
-
-After deploying, add your environment variables in Vercel:
-1. Go to your project in [Vercel Dashboard](https://vercel.com/dashboard)
-2. Settings > Environment Variables
-3. Add all variables from your `.env` file:
-   - `ANTHROPIC_API_KEY`
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-   - `GOOGLE_REFRESH_TOKEN`
-   - `GOOGLE_CALENDAR_ID`
-   - `DEFAULT_TIMEZONE`
-
-### Step 6: Create iOS Shortcut
+### Create the iOS Shortcut
 
 1. Open the **Shortcuts** app on your iPhone
 2. Tap **+** to create a new shortcut
-3. Add these actions:
+3. Add these actions in order:
 
-**Action 1: Receive input**
-- "Receive **Images** from **Share Sheet**"
+**Action 1: Receive Images**
+- Add "Receive **Apps and Images** from **Share Sheet**"
+- Set "If there's no input: **Ask For Photos**"
 
-**Action 2: Base64 Encode**
-- "Base64 Encode **Shortcut Input**"
+**Action 2: Convert to JPEG**
+- Add "Convert **Shortcut Input** to **JPEG**"
 
-**Action 3: URL Encode**
-- "URL Encode **Base64 Encoded**"
+**Action 3: Base64 Encode**
+- Add "Encode **Converted Image** with **base64**"
 
-**Action 4: Open URL**
-- URL: `https://screenshot-event-app.vercel.app/confirm.html?image=data:image/png;base64,[URL Encoded]`
+**Action 4: Get Contents of URL (API Call)**
+- Add "Get contents of URL"
+- URL: `https://YOUR-APP.vercel.app/api/quick-add`
+- Method: **POST**
+- Headers:
+  - `Content-Type`: `application/json`
+  - `X-API-Key`: `YOUR_APP_SECRET_KEY`
+- Request Body: **JSON**
+  - Add field `image` with value **Base64 Encoded** (the variable from step 3)
+
+**Action 5: Show Web View**
+- Add "Show web view at **Contents of URL**"
 
 **Shortcut Settings:**
-- Name: "Add Event from Screenshot"
-- Show in Share Sheet: ON
-- Share Sheet Types: Images
+- Name: "Add Event" (or whatever you prefer)
+- Show in Share Sheet: **ON**
+- Share Sheet Types: **Images**
 
 ### Usage
 
 1. Take or view a screenshot of an event
-2. Tap Share → "Add Event from Screenshot"
-3. Review the parsed event details
-4. Edit if needed
-5. Tap "Add to Calendar"
+2. Tap Share → "Add Event"
+3. Sign in with Google (first time only)
+4. Review the parsed event details
+5. Select which calendar to add to
+6. Tap "Add to Calendar"
 
-## Alternative: Direct Web Access
+---
 
-You can also go directly to `https://your-app.vercel.app/confirm.html` and upload a screenshot from the web interface.
+## Full Setup Guide
 
-## Troubleshooting
+### Step 1: Clone and Install
 
-### "Google Calendar authentication failed"
-- Re-run `node scripts/get-google-token.js` to get a fresh refresh token
-- Make sure all Google credentials are correctly set in Vercel
+```bash
+git clone https://github.com/your-username/screenshot_event.git
+cd screenshot_event
+npm install
+```
 
-### "Could not identify event details"
-- The screenshot may not have clear event information
-- Try a screenshot with visible date, time, and event name
-- You can still manually fill in the form
+### Step 2: Create Environment Variables
 
-### iOS Shortcut not working
-- Make sure "Show in Share Sheet" is enabled
-- Verify your Vercel URL is correct
-- Check that the URL encoding is working (the base64 should be URL-safe)
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your credentials:
+
+```env
+# Anthropic API Key (for Claude Vision)
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Google OAuth Credentials (from Google Cloud Console)
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+
+# App Secret Key (generate a random string for API authentication)
+APP_SECRET_KEY=your-random-secret-key-here
+
+# Default timezone for events
+DEFAULT_TIMEZONE=America/New_York
+```
+
+### Step 3: Google Cloud Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+
+2. **Create a new project** or select an existing one
+
+3. **Enable the Google Calendar API:**
+   - Go to "APIs & Services" > "Library"
+   - Search for "Google Calendar API"
+   - Click "Enable"
+
+4. **Configure OAuth Consent Screen:**
+   - Go to "APIs & Services" > "OAuth consent screen"
+   - Choose "External" user type
+   - Fill in app name (e.g., "Screenshot Events")
+   - Add your email as developer contact
+   - Add scope: `https://www.googleapis.com/auth/calendar`
+   - Add your email as a test user
+   - Save
+
+5. **Create OAuth Credentials:**
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth client ID"
+   - Application type: **Web application**
+   - Name: anything you want
+   - Authorized redirect URIs: 
+     - `https://YOUR-APP.vercel.app/api/auth/callback`
+     - `http://localhost:3000/api/auth/callback` (for local testing)
+   - Click "Create"
+   - **Save the Client ID and Client Secret**
+
+### Step 4: Deploy to Vercel
+
+```bash
+# Login to Vercel
+npx vercel login
+
+# Deploy to production
+npx vercel --prod
+```
+
+After deploying, add environment variables in Vercel:
+1. Go to your project in [Vercel Dashboard](https://vercel.com/dashboard)
+2. Settings > Environment Variables
+3. Add all variables from your `.env` file
+
+### Step 5: Create the iOS Shortcut
+
+See the [Quick Start](#quick-start-ios-shortcut) section above.
+
+---
 
 ## Development
 
-Run locally:
+### Run Locally
+
 ```bash
 npm run dev
 ```
@@ -180,19 +160,19 @@ This starts the Vercel dev server at `http://localhost:3000`.
 
 **Test the confirmation form with sample data:**
 ```bash
-# Single event
+# Single event (opens production URL)
 npm run test:form
 
 # Multiple events
 npm run test:form:multi
+
+# Use localhost (requires npm run dev)
+npm run test:form -- --local
 ```
 
-**Test uploading an image:**
+**Test uploading an image to the API:**
 ```bash
-# Uses placeholder image (tests connectivity)
-npm run test:upload
-
-# Test with a real screenshot
+# Test with a real screenshot (requires npm run dev)
 npm run test:upload -- /path/to/screenshot.jpg
 ```
 
@@ -217,37 +197,81 @@ To test the iOS Shortcut against your local dev server:
    ```
 
 3. **Duplicate your iOS Shortcut** and modify:
-   - Change URL from `https://screenshot-event-app.vercel.app/api/quick-add`
+   - Change URL from `https://your-app.vercel.app/api/quick-add`
    - To: `http://YOUR_IP:3000/api/quick-add`
-   - Example: `http://192.168.1.100:3000/api/quick-add`
 
 4. **Make sure your iPhone is on the same WiFi network as your Mac**
 
-5. **Test!** The shortcut will now use your local server, and the redirect URL will automatically point to your local IP.
+5. **Test!** The API will automatically use your local IP for redirect URLs.
 
-> ⚠️ **Note:** The API key (X-API-Key header) must match your local `.env` file's `APP_SECRET_KEY`.
+---
 
 ## Project Structure
 
 ```
 screenshot_event/
 ├── api/
-│   ├── parse-screenshot.js   # Claude Vision endpoint
-│   └── create-event.js       # Google Calendar endpoint
+│   ├── quick-add.js         # Main API - receives image, returns confirm URL
+│   ├── parse-screenshot.js  # Claude Vision parsing
+│   ├── calendars.js         # List user's Google Calendars
+│   ├── create-event.js      # Create single calendar event
+│   ├── create-events.js     # Create multiple calendar events
+│   └── auth/
+│       ├── google.js        # OAuth initiation
+│       └── callback.js      # OAuth callback handler
 ├── public/
-│   └── confirm.html          # Mobile-friendly confirmation page
+│   └── confirm.html         # Mobile-friendly event confirmation page
 ├── scripts/
-│   └── get-google-token.js   # OAuth helper script
+│   ├── get-google-token.js  # OAuth helper (legacy)
+│   ├── test-form.js         # Test confirmation form
+│   └── test-upload.js       # Test image upload API
 ├── package.json
 ├── vercel.json
 └── README.md
 ```
 
+---
+
+## Features
+
+- **Multi-day event support**: If an event spans multiple days (e.g., "Dec 6-7"), it creates separate calendar entries
+- **Calendar selection**: Choose which Google Calendar to add events to
+- **Auto end time**: If no end time is detected, defaults to 1 hour after start
+- **Edit before saving**: Review and modify all event details before adding to calendar
+- **Persistent sign-in**: Stay signed in across sessions (tokens stored in browser)
+
+---
+
+## Troubleshooting
+
+### "Session expired. Please sign in again."
+This is normal after Google tokens expire. Just tap "Sign in with Google" to re-authenticate.
+
+### iOS Shortcut shows error
+- Check that your `APP_SECRET_KEY` in the shortcut matches your `.env` file
+- Verify your Vercel deployment URL is correct
+- Make sure the API is deployed (check Vercel dashboard)
+
+### "Could not parse event details"
+- The screenshot may not have clear event information
+- Try a screenshot with visible date, time, and event name
+- The form allows manual editing if parsing is incomplete
+
+### Google Sign-in not working
+- Check that your OAuth redirect URI is correctly configured in Google Cloud Console
+- Make sure the Calendar API is enabled
+- Add your email as a test user in OAuth consent screen
+
+---
+
 ## Security Notes
 
-- Your Google refresh token provides access to your calendar - keep it secret
-- The app only has access to the specific calendar you authorized
-- Consider adding authentication if deploying publicly
+- `APP_SECRET_KEY` authenticates iOS Shortcut requests - keep it secret
+- Google OAuth tokens are stored in the browser's localStorage
+- Each user signs in with their own Google account
+- The app only accesses calendars the user authorizes
+
+---
 
 ## License
 
