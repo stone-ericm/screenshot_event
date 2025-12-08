@@ -40,7 +40,10 @@ const params = new URLSearchParams({
   events: JSON.stringify(events)
 });
 
-const url = `http://localhost:3000/confirm.html?${params.toString()}`;
+// Use production URL by default, localhost with --local flag
+const useLocal = process.argv.includes('--local');
+const baseUrl = useLocal ? 'http://localhost:3000' : 'https://screenshot-event-app.vercel.app';
+const url = `${baseUrl}/confirm.html?${params.toString()}`;
 
 console.log('Opening:', url);
 exec(`open "${url}"`);
