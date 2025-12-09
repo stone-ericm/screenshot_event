@@ -65,27 +65,6 @@
     .sign-out { color: #667eea; cursor: pointer; font-weight: 500; }
     .sign-out:hover { text-decoration: underline; }
     
-    /* Calendar Selector */
-    .calendar-selector {
-      padding: 16px 20px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .calendar-selector label {
-      display: block;
-      font-size: 14px;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 8px;
-    }
-    .calendar-selector select {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: 16px;
-      background: white;
-    }
-    
     /* Events List View */
     .events-list { padding: 20px; }
     .event-card {
@@ -193,13 +172,6 @@
       <span class="sign-out" onclick="signOut()">Sign out</span>
     </div>
 
-    <!-- Calendar Selector -->
-    <div id="calendarSelector" class="calendar-selector hidden">
-      <label for="calendarSelect">Add to calendar:</label>
-      <select id="calendarSelect" onchange="saveCalendarSelection()">
-        <option value="">Loading calendars...</option>
-      </select>
-    </div>
 
     <div id="loadingView" class="status show">
       <div class="spinner"></div>
@@ -347,7 +319,6 @@
       userEmail = null;
       showSignIn();
       document.getElementById('userBar').classList.add('hidden');
-      document.getElementById('calendarSelector').classList.add('hidden');
       document.getElementById('eventsListView').classList.add('hidden');
       document.getElementById('formView').classList.add('hidden');
     }
@@ -367,34 +338,20 @@
         const data = await response.json();
         calendars = data.calendars || [];
         
-        // Populate calendar dropdown
-        const select = document.getElementById('calendarSelect');
-        select.innerHTML = calendars.map(cal => 
-          `<option value="${cal.id}" ${cal.id === selectedCalendarId ? 'selected' : ''}>
-            ${cal.name}${cal.primary ? ' (Primary)' : ''}
-          </option>`
-        ).join('');
-
-        // Always default to primary calendar
+        // Always use primary calendar
         const primary = calendars.find(c => c.primary);
         selectedCalendarId = primary ? primary.id : calendars[0]?.id || 'primary';
-        select.value = selectedCalendarId;
 
         // Show UI
         document.getElementById('loadingView').classList.add('hidden');
         document.getElementById('userBar').classList.remove('hidden');
         document.getElementById('userEmail').textContent = userEmail || 'Signed in';
-        document.getElementById('calendarSelector').classList.remove('hidden');
         
         initializeEventView();
       } catch (error) {
         console.error('Failed to load calendars:', error);
         showResult('error', 'Failed to load calendars');
       }
-    }
-
-    function saveCalendarSelection() {
-      selectedCalendarId = document.getElementById('calendarSelect').value;
     }
 
     function initializeEventView() {
