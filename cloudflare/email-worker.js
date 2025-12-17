@@ -22,34 +22,7 @@ export default {
     
     try {
       // ============================================
-      // SECURITY CHECK 1: Verify DKIM signature
-      // ============================================
-      const authResults = message.headers.get('authentication-results') || '';
-      const dkimPass = authResults.toLowerCase().includes('dkim=pass');
-      
-      if (!dkimPass) {
-        console.log(`${LOG_PREFIX} DKIM verification failed - likely spoofed email`);
-        console.log(`${LOG_PREFIX} Auth-Results: ${authResults}`);
-        return; // Silently drop
-      }
-      
-      // ============================================
-      // SECURITY CHECK 2: Verify SPF
-      // ============================================
-      const spfHeader = message.headers.get('received-spf') || '';
-      const spfPass = spfHeader.toLowerCase().includes('pass');
-      
-      // Also check authentication-results for SPF
-      const spfInAuth = authResults.toLowerCase().includes('spf=pass');
-      
-      if (!spfPass && !spfInAuth) {
-        console.log(`${LOG_PREFIX} SPF verification failed - likely spoofed email`);
-        console.log(`${LOG_PREFIX} SPF Header: ${spfHeader}`);
-        return; // Silently drop
-      }
-      
-      // ============================================
-      // SECURITY CHECK 3: Whitelist check
+      // SECURITY CHECK 1: Whitelist check (primary security)
       // ============================================
       const fromAddress = message.from.toLowerCase();
       const allowedSenders = (env.ALLOWED_SENDERS || '')
