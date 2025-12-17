@@ -61,6 +61,102 @@ Turn screenshots of events (from social media, email, texts, etc.) into Google C
 
 ---
 
+## Email-to-Calendar Setup
+
+Forward emails with event details to `events@waiter12.com` and they'll automatically be added to your Google Calendar!
+
+### How It Works
+
+1. Forward an email containing event info to `events@waiter12.com`
+2. Cloudflare Email Worker validates the sender (SPF/DKIM + whitelist)
+3. Email is parsed and sent to Claude for event extraction
+4. Event is automatically created in Google Calendar
+
+### Prerequisites
+
+- Cloudflare account with `waiter12.com` domain
+- Vercel deployment with environment variables configured
+
+### Step 1: Configure Environment Variables
+
+Add these to your Vercel environment variables:
+
+```env
+# Email Processing
+ALLOWED_EMAIL_SENDERS=stone11375@gmail.com,stone.ericm@gmail.com
+CLOUDFLARE_WEBHOOK_SECRET=your-secret-here
+```
+
+Generate a webhook secret:
+```bash
+openssl rand -hex 32
+```
+
+### Step 2: Enable Cloudflare Email Routing
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. Select `waiter12.com`
+3. Go to **Email** > **Email Routing**
+4. Click **Enable Email Routing**
+5. Add the required DNS records when prompted (MX, TXT)
+
+### Step 3: Create the Email Worker
+
+1. In Cloudflare Dashboard, go to **Workers & Pages**
+2. Click **Create Application** > **Create Worker**
+3. Name it `email-event-worker`
+4. Replace the code with contents of `cloudflare/email-worker.js`
+5. Click **Save and Deploy**
+
+### Step 4: Configure Worker Environment Variables
+
+In your worker settings (Settings > Variables):
+
+| Variable | Value |
+|----------|-------|
+| `ALLOWED_SENDERS` | `stone11375@gmail.com,stone.ericm@gmail.com` |
+| `WEBHOOK_SECRET` | Same as `CLOUDFLARE_WEBHOOK_SECRET` in Vercel |
+| `VERCEL_API_URL` | `https://your-app.vercel.app/api/inbound-email` |
+
+### Step 5: Create Email Route
+
+1. Go back to **Email** > **Email Routing**
+2. Click **Routing Rules** > **Create Address**
+3. Custom address: `events`
+4. Action: **Send to a Worker**
+5. Destination: Select your `email-event-worker`
+6. Save
+
+### Usage
+
+Simply forward any email with event details to `events@waiter12.com`:
+
+- **Text emails**: Event details will be extracted from the email body
+- **Image attachments**: Screenshot images will be processed with Claude Vision
+
+**Example forwarded email:**
+```
+Subject: Holiday Party
+
+Hey! Don't forget about the holiday party:
+- Date: December 20, 2024
+- Time: 7:00 PM - 11:00 PM
+- Location: 123 Main St, New York
+```
+
+This will automatically create a calendar event!
+
+### Security Features
+
+- **SPF Verification**: Validates sender's mail server
+- **DKIM Verification**: Validates email signature
+- **Sender Whitelist**: Only processes emails from allowed addresses
+- **Webhook Secret**: Secures the Vercel API endpoint
+
+Non-whitelisted or spoofed emails are silently dropped.
+
+---
+
 ## Full Setup Guide
 
 ### Step 1: Clone and Install
@@ -213,12 +309,15 @@ screenshot_event/
 ├── api/
 │   ├── quick-add.js         # Main API - receives image, returns confirm URL
 │   ├── parse-screenshot.js  # Claude Vision parsing
+│   ├── inbound-email.js     # Email webhook handler (from Cloudflare)
 │   ├── calendars.js         # List user's Google Calendars
 │   ├── create-event.js      # Create single calendar event
 │   ├── create-events.js     # Create multiple calendar events
 │   └── auth/
 │       ├── google.js        # OAuth initiation
 │       └── callback.js      # OAuth callback handler
+├── cloudflare/
+│   └── email-worker.js      # Cloudflare Email Worker script
 ├── public/
 │   └── confirm.html         # Mobile-friendly event confirmation page
 ├── scripts/
@@ -239,6 +338,9 @@ screenshot_event/
 - **Auto end time**: If no end time is detected, defaults to 1 hour after start
 - **Edit before saving**: Review and modify all event details before adding to calendar
 - **Persistent sign-in**: Stay signed in across sessions (tokens stored in browser)
+- **Email-to-Calendar**: Forward emails to automatically create calendar events
+- **Image attachments**: Email attachments are processed with Claude Vision
+- **Secure email processing**: SPF/DKIM verification + sender whitelist
 
 ---
 
@@ -261,6 +363,18 @@ This is normal after Google tokens expire. Just tap "Sign in with Google" to re-
 - Check that your OAuth redirect URI is correctly configured in Google Cloud Console
 - Make sure the Calendar API is enabled
 - Add your email as a test user in OAuth consent screen
+
+### Email forwarding not creating events
+- Check Cloudflare Worker logs in the dashboard for errors
+- Verify your email is in `ALLOWED_EMAIL_SENDERS` (both Cloudflare and Vercel)
+- Make sure the `WEBHOOK_SECRET` matches in both Cloudflare and Vercel
+- Check Vercel function logs for the `/api/inbound-email` endpoint
+- Ensure DNS records for email routing are properly configured
+
+### Email events not appearing in calendar
+- Verify `GOOGLE_REFRESH_TOKEN` is set and valid
+- Check that the email contains clear event information (date, time, title)
+- Review Vercel logs for Claude parsing errors
 
 ---
 
