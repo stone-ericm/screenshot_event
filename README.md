@@ -1,391 +1,133 @@
-# Screenshot to Calendar Event
+# Screenshot Event
 
-Turn screenshots of events (from social media, email, texts, etc.) into Google Calendar events using Claude's vision AI.
+Turn screenshots of events into Google Calendar entries using Claude's vision AI.
 
-## How It Works
+## How it works
 
-1. **Share a screenshot** from your iPhone via iOS Shortcut
-2. **Claude Vision AI** extracts event details (title, date, time, location)
-3. **Sign in with Google** (first time only) to authorize calendar access
-4. **Review & edit** the parsed event in a mobile-friendly web form
-5. **Add to any Google Calendar** with one tap
+There are two ways to get event screenshots into the system:
 
-## Quick Start (iOS Shortcut)
+**iOS Shortcut** -- Share a screenshot from any app on your phone. The shortcut base64-encodes the image, sends it to the `/api/quick-add` endpoint, and opens a confirmation page where you review the parsed details and add the event to your calendar.
+
+**Email forwarding** -- Forward an email containing event details (text or image attachments) to a Cloudflare email worker. The worker validates the sender via SPF/DKIM and a whitelist, then posts the content to the Vercel API. Events are created in Google Calendar automatically using a stored refresh token.
+
+## Architecture
+
+```
+iOS Shortcut                      Email
+    |                               |
+    | POST /api/quick-add           | Cloudflare Email Worker
+    | (base64 image)                | (SPF/DKIM + sender whitelist)
+    |                               |
+    v                               v
+Vercel Serverless API ---------------------
+    |                                     |
+    | /api/parse-screenshot               | /api/inbound-email
+    | Claude Vision extracts              | mailparser extracts body
+    | title, date, time, location         | and image attachments
+    |                                     |
+    v                                     v
+Claude SDK (vision) ---- event JSON ---- Claude SDK (vision/text)
+    |                                     |
+    v                                     v
+/public/confirm.html                 Auto-create via
+(review, edit, pick calendar)        stored Google OAuth token
+    |
+    v
+/api/create-event(s)
+Google Calendar API
+```
+
+## Tech stack
+
+- **Runtime**: Node.js 18+, ES modules
+- **Hosting**: Vercel serverless functions
+- **AI**: Anthropic Claude SDK (vision + text parsing)
+- **Calendar**: Google Calendar API via `googleapis`
+- **Email**: Cloudflare Email Workers, `mailparser`
+- **Auth**: Google OAuth 2.0 (tokens stored client-side for shortcut flow, server-side refresh token for email flow)
+- **Frontend**: Single static HTML page (`public/confirm.html`)
+
+## Project structure
+
+```
+api/
+  quick-add.js          Entry point for iOS Shortcut (receives base64 image)
+  parse-screenshot.js   Sends image to Claude, returns structured event data
+  inbound-email.js      Webhook handler for Cloudflare email worker
+  create-event.js       Creates a single Google Calendar event
+  create-events.js      Creates multiple events (multi-day support)
+  calendars.js          Lists the user's Google Calendars
+  upload.js             Direct image upload endpoint
+  confirm-event.js      Confirms and finalizes event creation
+  auth/
+    google.js           Initiates Google OAuth flow
+    callback.js         Handles OAuth callback, stores tokens
+cloudflare/
+  email-worker.js       Cloudflare Worker that receives and forwards emails
+public/
+  confirm.html          Mobile-friendly review and edit form
+scripts/
+  test-form.js          Opens confirm page with sample data
+  test-upload.js        Sends a test image to the API
+  get-google-token.js   Helper to obtain Google refresh token
+```
+
+## Setup
 
 ### Prerequisites
-- Your deployed app URL (e.g., `https://screenshot-event-app.vercel.app`)
-- Your `APP_SECRET_KEY` from the `.env` file
 
-### Create the iOS Shortcut
+- Node.js 18+
+- Vercel account
+- Anthropic API key
+- Google Cloud project with Calendar API enabled and OAuth credentials
 
-1. Open the **Shortcuts** app on your iPhone
-2. Tap **+** to create a new shortcut
-3. Add these actions in order:
+### Environment variables
 
-**Action 1: Receive Images**
-- Add "Receive **Apps and Images** from **Share Sheet**"
-- Set "If there's no input: **Ask For Photos**"
-
-**Action 2: Convert to JPEG**
-- Add "Convert **Shortcut Input** to **JPEG**"
-
-**Action 3: Base64 Encode**
-- Add "Encode **Converted Image** with **base64**"
-
-**Action 4: Get Contents of URL (API Call)**
-- Add "Get contents of URL"
-- URL: `https://YOUR-APP.vercel.app/api/quick-add`
-- Method: **POST**
-- Headers:
-  - `Content-Type`: `application/json`
-  - `X-API-Key`: `YOUR_APP_SECRET_KEY`
-- Request Body: **JSON**
-  - Add field `image` with value **Base64 Encoded** (the variable from step 3)
-
-**Action 5: Show Web View**
-- Add "Show web view at **Contents of URL**"
-
-**Shortcut Settings:**
-- Name: "Add Event" (or whatever you prefer)
-- Show in Share Sheet: **ON**
-- Share Sheet Types: **Images**
-
-### Usage
-
-1. Take or view a screenshot of an event
-2. Tap Share → "Add Event"
-3. Sign in with Google (first time only)
-4. Review the parsed event details
-5. Select which calendar to add to
-6. Tap "Add to Calendar"
-
----
-
-## Email-to-Calendar Setup
-
-Forward emails with event details to `events@waiter12.com` and they'll automatically be added to your Google Calendar!
-
-### How It Works
-
-1. Forward an email containing event info to `events@waiter12.com`
-2. Cloudflare Email Worker validates the sender (SPF/DKIM + whitelist)
-3. Email is parsed and sent to Claude for event extraction
-4. Event is automatically created in Google Calendar
-
-### Prerequisites
-
-- Cloudflare account with `waiter12.com` domain
-- Vercel deployment with environment variables configured
-
-### Step 1: Configure Environment Variables
-
-Add these to your Vercel environment variables:
-
-```env
-# Email Processing
-ALLOWED_EMAIL_SENDERS=stone11375@gmail.com,stone.ericm@gmail.com
-CLOUDFLARE_WEBHOOK_SECRET=your-secret-here
+```
+ANTHROPIC_API_KEY        Anthropic API key for Claude
+GOOGLE_CLIENT_ID         Google OAuth client ID
+GOOGLE_CLIENT_SECRET     Google OAuth client secret
+GOOGLE_REFRESH_TOKEN     Stored refresh token (email flow only)
+APP_SECRET_KEY           Shared secret for iOS Shortcut authentication
+DEFAULT_TIMEZONE         e.g. America/New_York
+ALLOWED_EMAIL_SENDERS    Comma-separated list of allowed sender addresses
+CLOUDFLARE_WEBHOOK_SECRET  Shared secret between Cloudflare worker and Vercel
 ```
 
-Generate a webhook secret:
-```bash
-openssl rand -hex 32
-```
-
-### Step 2: Enable Cloudflare Email Routing
-
-1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Select `waiter12.com`
-3. Go to **Email** > **Email Routing**
-4. Click **Enable Email Routing**
-5. Add the required DNS records when prompted (MX, TXT)
-
-### Step 3: Create the Email Worker
-
-1. In Cloudflare Dashboard, go to **Workers & Pages**
-2. Click **Create Application** > **Create Worker**
-3. Name it `email-event-worker`
-4. Replace the code with contents of `cloudflare/email-worker.js`
-5. Click **Save and Deploy**
-
-### Step 4: Configure Worker Environment Variables
-
-In your worker settings (Settings > Variables):
-
-| Variable | Value |
-|----------|-------|
-| `ALLOWED_SENDERS` | `stone11375@gmail.com,stone.ericm@gmail.com` |
-| `WEBHOOK_SECRET` | Same as `CLOUDFLARE_WEBHOOK_SECRET` in Vercel |
-| `VERCEL_API_URL` | `https://your-app.vercel.app/api/inbound-email` |
-
-### Step 5: Create Email Route
-
-1. Go back to **Email** > **Email Routing**
-2. Click **Routing Rules** > **Create Address**
-3. Custom address: `events`
-4. Action: **Send to a Worker**
-5. Destination: Select your `email-event-worker`
-6. Save
-
-### Usage
-
-Simply forward any email with event details to `events@waiter12.com`:
-
-- **Text emails**: Event details will be extracted from the email body
-- **Image attachments**: Screenshot images will be processed with Claude Vision
-
-**Example forwarded email:**
-```
-Subject: Holiday Party
-
-Hey! Don't forget about the holiday party:
-- Date: December 20, 2024
-- Time: 7:00 PM - 11:00 PM
-- Location: 123 Main St, New York
-```
-
-This will automatically create a calendar event!
-
-### Security Features
-
-- **SPF Verification**: Validates sender's mail server
-- **DKIM Verification**: Validates email signature
-- **Sender Whitelist**: Only processes emails from allowed addresses
-- **Webhook Secret**: Secures the Vercel API endpoint
-
-Non-whitelisted or spoofed emails are silently dropped.
-
----
-
-## Full Setup Guide
-
-### Step 1: Clone and Install
+### Deploy
 
 ```bash
-git clone https://github.com/your-username/screenshot_event.git
-cd screenshot_event
 npm install
-```
-
-### Step 2: Create Environment Variables
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your credentials:
-
-```env
-# Anthropic API Key (for Claude Vision)
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-
-# Google OAuth Credentials (from Google Cloud Console)
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-
-# App Secret Key (generate a random string for API authentication)
-APP_SECRET_KEY=your-random-secret-key-here
-
-# Default timezone for events
-DEFAULT_TIMEZONE=America/New_York
-```
-
-### Step 3: Google Cloud Setup
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-
-2. **Create a new project** or select an existing one
-
-3. **Enable the Google Calendar API:**
-   - Go to "APIs & Services" > "Library"
-   - Search for "Google Calendar API"
-   - Click "Enable"
-
-4. **Configure OAuth Consent Screen:**
-   - Go to "APIs & Services" > "OAuth consent screen"
-   - Choose "External" user type
-   - Fill in app name (e.g., "Screenshot Events")
-   - Add your email as developer contact
-   - Add scope: `https://www.googleapis.com/auth/calendar`
-   - Add your email as a test user
-   - Save
-
-5. **Create OAuth Credentials:**
-   - Go to "APIs & Services" > "Credentials"
-   - Click "Create Credentials" > "OAuth client ID"
-   - Application type: **Web application**
-   - Name: anything you want
-   - Authorized redirect URIs: 
-     - `https://YOUR-APP.vercel.app/api/auth/callback`
-     - `http://localhost:3000/api/auth/callback` (for local testing)
-   - Click "Create"
-   - **Save the Client ID and Client Secret**
-
-### Step 4: Deploy to Vercel
-
-```bash
-# Login to Vercel
-npx vercel login
-
-# Deploy to production
 npx vercel --prod
 ```
 
-After deploying, add environment variables in Vercel:
-1. Go to your project in [Vercel Dashboard](https://vercel.com/dashboard)
-2. Settings > Environment Variables
-3. Add all variables from your `.env` file
+Add the environment variables in Vercel project settings. Set the Google OAuth redirect URI to `https://<your-app>.vercel.app/api/auth/callback`.
 
-### Step 5: Create the iOS Shortcut
+### Email routing (optional)
 
-See the [Quick Start](#quick-start-ios-shortcut) section above.
+1. Enable Cloudflare Email Routing on your domain.
+2. Deploy `cloudflare/email-worker.js` as a Cloudflare Worker.
+3. Set `ALLOWED_SENDERS`, `WEBHOOK_SECRET`, and `VERCEL_API_URL` as worker environment variables.
+4. Create a routing rule that sends your chosen address to the worker.
 
----
+### iOS Shortcut
 
-## Development
+Create a shortcut with these steps:
 
-### Run Locally
+1. Receive images from Share Sheet
+2. Convert to JPEG
+3. Base64 encode
+4. POST to `https://<your-app>.vercel.app/api/quick-add` with header `X-API-Key: <APP_SECRET_KEY>` and JSON body `{"image": "<base64>"}`
+5. Show the response as a web page
+
+### Local development
 
 ```bash
-npm run dev
+npm run dev           # Start Vercel dev server on localhost:3000
+npm run test:form     # Open confirm page with sample data
+npm run test:upload   # Send a test image to the local API
+npm run ip            # Print your local IP for iPhone testing
 ```
-
-This starts the Vercel dev server at `http://localhost:3000`.
-
-### Testing Scripts
-
-**Test the confirmation form with sample data:**
-```bash
-# Single event (opens production URL)
-npm run test:form
-
-# Multiple events
-npm run test:form:multi
-
-# Use localhost (requires npm run dev)
-npm run test:form -- --local
-```
-
-**Test uploading an image to the API:**
-```bash
-# Test with a real screenshot (requires npm run dev)
-npm run test:upload -- /path/to/screenshot.jpg
-```
-
-**Get your local IP for iPhone testing:**
-```bash
-npm run ip
-```
-
-### Local Network Testing (iPhone → Mac)
-
-To test the iOS Shortcut against your local dev server:
-
-1. **Start the dev server:**
-   ```bash
-   npm run dev
-   ```
-
-2. **Get your Mac's local IP:**
-   ```bash
-   npm run ip
-   # Example output: 192.168.1.100
-   ```
-
-3. **Duplicate your iOS Shortcut** and modify:
-   - Change URL from `https://your-app.vercel.app/api/quick-add`
-   - To: `http://YOUR_IP:3000/api/quick-add`
-
-4. **Make sure your iPhone is on the same WiFi network as your Mac**
-
-5. **Test!** The API will automatically use your local IP for redirect URLs.
-
----
-
-## Project Structure
-
-```
-screenshot_event/
-├── api/
-│   ├── quick-add.js         # Main API - receives image, returns confirm URL
-│   ├── parse-screenshot.js  # Claude Vision parsing
-│   ├── inbound-email.js     # Email webhook handler (from Cloudflare)
-│   ├── calendars.js         # List user's Google Calendars
-│   ├── create-event.js      # Create single calendar event
-│   ├── create-events.js     # Create multiple calendar events
-│   └── auth/
-│       ├── google.js        # OAuth initiation
-│       └── callback.js      # OAuth callback handler
-├── cloudflare/
-│   └── email-worker.js      # Cloudflare Email Worker script
-├── public/
-│   └── confirm.html         # Mobile-friendly event confirmation page
-├── scripts/
-│   ├── get-google-token.js  # OAuth helper (legacy)
-│   ├── test-form.js         # Test confirmation form
-│   └── test-upload.js       # Test image upload API
-├── package.json
-├── vercel.json
-└── README.md
-```
-
----
-
-## Features
-
-- **Multi-day event support**: If an event spans multiple days (e.g., "Dec 6-7"), it creates separate calendar entries
-- **Calendar selection**: Choose which Google Calendar to add events to
-- **Auto end time**: If no end time is detected, defaults to 1 hour after start
-- **Edit before saving**: Review and modify all event details before adding to calendar
-- **Persistent sign-in**: Stay signed in across sessions (tokens stored in browser)
-- **Email-to-Calendar**: Forward emails to automatically create calendar events
-- **Image attachments**: Email attachments are processed with Claude Vision
-- **Secure email processing**: SPF/DKIM verification + sender whitelist
-
----
-
-## Troubleshooting
-
-### "Session expired. Please sign in again."
-This is normal after Google tokens expire. Just tap "Sign in with Google" to re-authenticate.
-
-### iOS Shortcut shows error
-- Check that your `APP_SECRET_KEY` in the shortcut matches your `.env` file
-- Verify your Vercel deployment URL is correct
-- Make sure the API is deployed (check Vercel dashboard)
-
-### "Could not parse event details"
-- The screenshot may not have clear event information
-- Try a screenshot with visible date, time, and event name
-- The form allows manual editing if parsing is incomplete
-
-### Google Sign-in not working
-- Check that your OAuth redirect URI is correctly configured in Google Cloud Console
-- Make sure the Calendar API is enabled
-- Add your email as a test user in OAuth consent screen
-
-### Email forwarding not creating events
-- Check Cloudflare Worker logs in the dashboard for errors
-- Verify your email is in `ALLOWED_EMAIL_SENDERS` (both Cloudflare and Vercel)
-- Make sure the `WEBHOOK_SECRET` matches in both Cloudflare and Vercel
-- Check Vercel function logs for the `/api/inbound-email` endpoint
-- Ensure DNS records for email routing are properly configured
-
-### Email events not appearing in calendar
-- Verify `GOOGLE_REFRESH_TOKEN` is set and valid
-- Check that the email contains clear event information (date, time, title)
-- Review Vercel logs for Claude parsing errors
-
----
-
-## Security Notes
-
-- `APP_SECRET_KEY` authenticates iOS Shortcut requests - keep it secret
-- Google OAuth tokens are stored in the browser's localStorage
-- Each user signs in with their own Google account
-- The app only accesses calendars the user authorizes
-
----
 
 ## License
 
