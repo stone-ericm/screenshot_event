@@ -6,6 +6,11 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // Allowed email senders (loaded from environment)
 function getAllowedSenders() {
   return (process.env.ALLOWED_EMAIL_SENDERS || "")
@@ -21,8 +26,8 @@ function verifyWebhookSecret(req) {
   const expectedSecret = process.env.CLOUDFLARE_WEBHOOK_SECRET;
 
   if (!expectedSecret) {
-    console.warn("CLOUDFLARE_WEBHOOK_SECRET not configured - skipping verification");
-    return true;
+    console.warn("CLOUDFLARE_WEBHOOK_SECRET not configured - rejecting request");
+    return false;
   }
 
   return secret === expectedSecret;
@@ -169,25 +174,25 @@ async function sendConfirmationEmail(toEmail, eventData, confirmUrl) {
       <h1 style="color: white; margin: 0; font-size: 24px;">📅 New Event Detected</h1>
     </div>
     <div style="padding: 30px;">
-      <h2 style="color: #1f2937; margin: 0 0 20px 0;">${eventData.title}</h2>
-      
+      <h2 style="color: #1f2937; margin: 0 0 20px 0;">${escapeHtml(eventData.title)}</h2>
+
       <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
         <p style="margin: 0 0 10px 0; color: #374151;">
-          <strong>📅 Date:</strong> ${formattedDate}
+          <strong>📅 Date:</strong> ${escapeHtml(formattedDate)}
         </p>
         <p style="margin: 0 0 10px 0; color: #374151;">
-          <strong>⏰ Time:</strong> ${eventData.startTime}${eventData.endTime ? ` - ${eventData.endTime}` : ""}
+          <strong>⏰ Time:</strong> ${escapeHtml(eventData.startTime)}${eventData.endTime ? ` - ${escapeHtml(eventData.endTime)}` : ""}
         </p>
-        ${eventData.location ? `<p style="margin: 0 0 10px 0; color: #374151;"><strong>📍 Location:</strong> ${eventData.location}</p>` : ""}
-        ${eventData.description ? `<p style="margin: 0; color: #6b7280; font-size: 14px;">${eventData.description}</p>` : ""}
+        ${eventData.location ? `<p style="margin: 0 0 10px 0; color: #374151;"><strong>📍 Location:</strong> ${escapeHtml(eventData.location)}</p>` : ""}
+        ${eventData.description ? `<p style="margin: 0; color: #6b7280; font-size: 14px;">${escapeHtml(eventData.description)}</p>` : ""}
       </div>
-      
+
       <div style="text-align: center; margin-top: 30px;">
-        <a href="${confirmUrl}" style="display: inline-block; background: #10b981; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+        <a href="${escapeHtml(confirmUrl)}" style="display: inline-block; background: #10b981; color: white; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
           ✅ Add to Calendar
         </a>
       </div>
-      
+
       <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 30px;">
         This link expires in 24 hours. If you didn't request this, you can safely ignore this email.
       </p>
@@ -265,7 +270,7 @@ export default async function handler(req, res) {
 
     // Collect all images (attachments + inline/embedded)
     const images = [];
-    
+
     // Get image attachments
     const allAttachments = parsed.attachments || [];
     for (const att of allAttachments) {
@@ -320,8 +325,8 @@ export default async function handler(req, res) {
     const token = generateConfirmationToken(eventData, secret);
 
     // Build confirmation URL
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
       : "https://screenshotevent.vercel.app";
     const confirmUrl = `${baseUrl}/api/confirm-event?token=${encodeURIComponent(token)}`;
 
