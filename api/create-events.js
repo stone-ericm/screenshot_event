@@ -5,7 +5,7 @@ function htmlResponse(success, message, count = 0) {
   const bgColor = success ? '#d1fae5' : '#fee2e2';
   const textColor = success ? '#065f46' : '#991b1b';
   const icon = success ? '✅' : '❌';
-  
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -57,7 +57,7 @@ function htmlResponse(success, message, count = 0) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
 
@@ -122,7 +122,13 @@ export default async function handler(req, res) {
       } else {
         const [hours, minutes] = startTime.split(':').map(Number);
         const endHours = (hours + 1) % 24;
-        endDateTime = `${date}T${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+        let endDate = date;
+        if (endHours < hours) {
+          const d = new Date(date);
+          d.setDate(d.getDate() + 1);
+          endDate = d.toISOString().split('T')[0];
+        }
+        endDateTime = `${endDate}T${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
       }
 
       const event = {
@@ -148,7 +154,7 @@ export default async function handler(req, res) {
       if (!response.ok) {
         const error = await response.json();
         console.error('Calendar API error:', error);
-        
+
         if (response.status === 401) {
           if (isGet) {
             res.setHeader('Content-Type', 'text/html');
