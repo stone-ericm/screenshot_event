@@ -1,5 +1,10 @@
 import crypto from "crypto";
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // Verify the confirmation token
 function verifyToken(token, secret) {
   try {
@@ -51,7 +56,13 @@ async function createCalendarEvent(eventData) {
   } else {
     const [hours, minutes] = eventData.startTime.split(":").map(Number);
     const endHours = (hours + 1) % 24;
-    endDateTime = `${eventData.date}T${String(endHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+    let endDate = eventData.date;
+    if (endHours < hours) {
+      const d = new Date(eventData.date);
+      d.setDate(d.getDate() + 1);
+      endDate = d.toISOString().split('T')[0];
+    }
+    endDateTime = `${endDate}T${String(endHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
   }
 
   const event = {
@@ -97,17 +108,17 @@ export default async function handler(req, res) {
     const createdEvent = await createCalendarEvent(eventData);
 
     const successMessage = `
-      <strong>"${eventData.title}"</strong> has been added to your calendar!
+      <strong>"${escapeHtml(eventData.title)}"</strong> has been added to your calendar!
       <br><br>
-      📅 ${eventData.date}<br>
-      ⏰ ${eventData.startTime}${eventData.endTime ? ` - ${eventData.endTime}` : ""}<br>
-      ${eventData.location ? `📍 ${eventData.location}` : ""}
+      📅 ${escapeHtml(eventData.date)}<br>
+      ⏰ ${escapeHtml(eventData.startTime)}${eventData.endTime ? ` - ${escapeHtml(eventData.endTime)}` : ""}<br>
+      ${eventData.location ? `📍 ${escapeHtml(eventData.location)}` : ""}
     `;
 
     return res.status(200).send(renderHTML("Event Created! ✅", successMessage, true, createdEvent.htmlLink));
   } catch (error) {
     console.error("Error creating event:", error);
-    return res.status(500).send(renderHTML("Error", `Failed to create event: ${error.message}`, false));
+    return res.status(500).send(renderHTML("Error", `Failed to create event: ${escapeHtml(error.message)}`, false));
   }
 }
 
@@ -117,7 +128,7 @@ function renderHTML(title, message, success, calendarLink = null) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -168,9 +179,9 @@ function renderHTML(title, message, success, calendarLink = null) {
 <body>
   <div class="card">
     <div class="icon">${success ? "🎉" : "❌"}</div>
-    <h1>${title}</h1>
+    <h1>${escapeHtml(title)}</h1>
     <p>${message}</p>
-    ${calendarLink ? `<a href="${calendarLink}" class="btn">View in Calendar</a>` : ""}
+    ${calendarLink ? `<a href="${escapeHtml(calendarLink)}" class="btn">View in Calendar</a>` : ""}
   </div>
 </body>
 </html>`;
