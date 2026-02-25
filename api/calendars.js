@@ -1,6 +1,6 @@
 // Fetch user's calendar list
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -26,17 +26,17 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const error = await response.json();
       console.error('Calendar list error:', error);
-      
+
       // Check if token expired
       if (response.status === 401) {
         return res.status(401).json({ error: 'token_expired', message: 'Access token expired' });
       }
-      
+
       return res.status(response.status).json({ error: error.error?.message || 'Failed to fetch calendars' });
     }
 
     const data = await response.json();
-    
+
     // Return simplified calendar list
     const calendars = (data.items || [])
       .filter(cal => cal.accessRole === 'owner' || cal.accessRole === 'writer')
