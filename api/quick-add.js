@@ -28,17 +28,17 @@ export default async function handler(req, res) {
 
       // Clean up base64 data from iOS Shortcuts
       let base64Image = image;
-      
+
       // Remove data URL prefix if present
       base64Image = base64Image.replace(/^data:image\/[^;]+;base64,/, '');
-      
+
       // Remove any whitespace, newlines, or carriage returns
       base64Image = base64Image.replace(/[\s\r\n]/g, '');
-      
+
       // Log first 50 chars for debugging
       console.log('Image data prefix:', base64Image.substring(0, 50));
       console.log('Image data length:', base64Image.length);
-      
+
       // Detect media type from base64 magic bytes or data URL
       // PNG starts with iVBORw0KGgo, JPEG with /9j/
       let mediaType = 'image/png';
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       } else if (image.includes('data:image/webp')) {
         mediaType = 'image/webp';
       }
-      
+
       console.log('Detected media type:', mediaType);
 
       const response = await anthropic.messages.create({
@@ -85,12 +85,12 @@ Multiple days: [{"title":"Event Name (Day 1)","date":"2025-12-06","startTime":"1
       });
 
       const textContent = response.content.find((block) => block.type === 'text');
-      
+
       // Try to parse as array first, then as single object
       let parsedData;
       const arrayMatch = textContent?.text.match(/\[[\s\S]*\]/);
       const objectMatch = textContent?.text.match(/\{[\s\S]*\}/);
-      
+
       if (arrayMatch) {
         try {
           parsedData = JSON.parse(arrayMatch[0]);
@@ -103,13 +103,12 @@ Multiple days: [{"title":"Event Name (Day 1)","date":"2025-12-06","startTime":"1
       } else if (objectMatch) {
         parsedData = [JSON.parse(objectMatch[0])];
       }
-      
+
       if (parsedData && parsedData.length > 0) {
         // Encode events as JSON in URL parameter
         const events = Array.isArray(parsedData) ? parsedData : [parsedData];
-        
+
         const params = new URLSearchParams({
-          key: apiKey,
           events: JSON.stringify(events),
           prefilled: '1'
         });
@@ -118,9 +117,9 @@ Multiple days: [{"title":"Event Name (Day 1)","date":"2025-12-06","startTime":"1
         const host = req.headers.host || 'screenshot-event-app.vercel.app';
         const protocol = host.includes('localhost') || host.match(/^\d+\.\d+\.\d+\.\d+/) ? 'http' : 'https';
         const baseUrl = host.includes('vercel.app') ? 'https://screenshot-event-app.vercel.app' : `${protocol}://${host}`;
-        
+
         const redirectUrl = `${baseUrl}/confirm.html?${params.toString()}`;
-        
+
         // Return plain text URL (no formatting, headers, or encoding)
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache');
@@ -132,7 +131,7 @@ Multiple days: [{"title":"Event Name (Day 1)","date":"2025-12-06","startTime":"1
       console.error('Error:', error);
       const errorMessage = error.message || 'Unknown error';
       const statusCode = error.status || 500;
-      return res.status(statusCode).json({ 
+      return res.status(statusCode).json({
         error: errorMessage,
         details: error.error?.message || error.cause?.message || null
       });
