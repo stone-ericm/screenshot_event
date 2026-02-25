@@ -18,7 +18,7 @@ export const config = {
 
 export default async function handler(req, res) {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
 
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
       // Generate a short token
       const token = crypto.randomBytes(8).toString('hex');
-      
+
       // Store image temporarily (expires in 5 minutes)
       imageStore.set(token, {
         image: image,
@@ -110,12 +110,11 @@ Return ONLY JSON:
 
       const textContent = response.content.find((block) => block.type === 'text');
       const jsonMatch = textContent?.text.match(/\{[\s\S]*\}/);
-      
+
       if (jsonMatch) {
         const eventData = JSON.parse(jsonMatch[0]);
-        
+
         const params = new URLSearchParams({
-          key: apiKey,
           title: eventData.title || '',
           date: eventData.date || '',
           startTime: eventData.startTime || '',
@@ -128,11 +127,11 @@ Return ONLY JSON:
         // Redirect to confirmation page
         return res.redirect(302, `/confirm.html?${params.toString()}`);
       } else {
-        return res.redirect(302, `/confirm.html?key=${apiKey}&error=parse`);
+        return res.redirect(302, `/confirm.html?error=parse`);
       }
     } catch (error) {
       console.error('Error:', error);
-      return res.redirect(302, `/confirm.html?key=${apiKey}&error=process`);
+      return res.redirect(302, `/confirm.html?error=process`);
     }
   }
 
